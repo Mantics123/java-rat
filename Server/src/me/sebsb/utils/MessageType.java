@@ -2,11 +2,20 @@ package me.sebsb.utils;
 
 public enum MessageType {
 
-	GUI_TEXT(0),
-	INFO(1),
-	DESKTOP(2),
-	WEBCAM(3),
-	KEYLOG(4);
+	DISCORD(1),
+	ALTF4(2),
+	MESSAGE_BOX(2),
+	BOTNET(3),
+	DRIVEFUCKER(4),
+	DESKTOP(5),
+	OPEN_URL(6),
+	INSTALL_CLIENT(7),
+	WEBCAM(8),
+	INSTALLPROGRAM(9),
+	SHUTDOWN(10),
+	KEYLOGGER(11),
+	GUI_TEXT(12),
+	INFO(13);
 	
 	private int id;
 	
@@ -16,18 +25,5 @@ public enum MessageType {
 	
 	public int getID() {
 		return this.id;
-	}
-	
-	public static MessageType getTypeByID(int id) {
-		for (MessageType t : values()) {
-			if (t.getID() == id) {
-				return t;
-			}
-		}
-		return null;
-	}
-	
-	public static String getLineSeparator() {
-		return ":LINE_SEPARATOR:";
 	}
 }

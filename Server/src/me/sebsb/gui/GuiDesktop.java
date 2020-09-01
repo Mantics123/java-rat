@@ -8,7 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
@@ -20,8 +20,10 @@ import javax.swing.JPanel;
 import javax.swing.border.LineBorder;
 
 import me.sebsb.ConnectedClient;
-import me.sebsb.action.Action;
+import me.sebsb.utils.MessageType;
 import me.sebsb.utils.NetUtils;
+import me.sebsb.utils.Packet;
+
 import javax.swing.JSlider;
 
 public class GuiDesktop extends JFrame {
@@ -33,8 +35,8 @@ public class GuiDesktop extends JFrame {
 	private JCheckBox checkbox;
 	private JButton btnStart;
 	private JButton btnStart_1;
-
 	private ConnectedClient client;
+	
 	public GuiDesktop(ConnectedClient client) {
 		this.client = client;
 		setTitle(client.getUsername());
@@ -60,12 +62,15 @@ public class GuiDesktop extends JFrame {
 		btnStart_1.addActionListener(new ActionListener() {
 
 			@Override
-			public void actionPerformed(ActionEvent e) {
-				Action a = Action.DESKTOP;
-				ArrayList<String> data = new ArrayList<String>();
-				data.add("start");
-				a.setData(data);
-				NetUtils.sendMessage(a.getCommand(), client.getPrintWriter());
+			public void actionPerformed(ActionEvent event) {
+				Packet packet = new Packet();
+				packet.action = MessageType.DESKTOP.getID();
+				packet.data = Arrays.asList(new String[] {"start"});
+				try {
+					NetUtils.sendMessage(packet, client.getPrintWriter());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 			
 		});
@@ -76,13 +81,16 @@ public class GuiDesktop extends JFrame {
 		btnStart.addActionListener(new ActionListener() {
 
 			@Override
-			public void actionPerformed(ActionEvent e) {
+			public void actionPerformed(ActionEvent event) {
 				setImage(null);
-				Action a = Action.DESKTOP;
-				ArrayList<String> data = new ArrayList<String>();
-				data.add("stop");
-				a.setData(data);
-				NetUtils.sendMessage(a.getCommand(), client.getPrintWriter());
+				Packet packet = new Packet();
+				packet.action = MessageType.DESKTOP.getID();
+				packet.data = Arrays.asList(new String[] {"stop"});
+				try {
+					NetUtils.sendMessage(packet, client.getPrintWriter());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 			
 		});
@@ -108,9 +116,14 @@ public class GuiDesktop extends JFrame {
 		if (this.isVisible()) {
 			if (lastSet != compSlider.getValue()) {
 				lastSet = compSlider.getValue();
-				Action a = Action.DESKTOP;
-				a.setData(new String[] {"comp", ((float)compSlider.getValue() / (float)compSlider.getMaximum()) + ""});
-				NetUtils.sendMessage(a.getCommand(), client.getPrintWriter());
+				Packet packet = new Packet();
+				packet.action = MessageType.DESKTOP.getID();
+				packet.data = Arrays.asList(new String[] {"comp", ((float)compSlider.getValue() / (float)compSlider.getMaximum()) + ""});
+				try {
+					NetUtils.sendMessage(packet, this.client.getPrintWriter());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 			video.setSize(contentPane.getWidth(), contentPane.getHeight() - 25);
 			this.label.setIcon(new ImageIcon(image.getScaledInstance(video.getWidth(), video.getHeight(), 0)));

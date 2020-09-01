@@ -1,34 +1,38 @@
 package me.sebsb.utils;
 
-import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.SocketException;
-import java.util.Arrays;
-
-import me.sebsb.exception.ClientDisconnectedException;
+import java.util.ArrayList;
 
 public class NetUtils {
 
-	public static void sendMessage(String message, PrintWriter pw) {
-		pw.println(message);
+	public static void sendMessage(Packet packet, PrintWriter pw) throws Exception {
+		if (packet == null || pw == null) {
+			return;
+		}
+		StringBuilder sb = new StringBuilder();
+		sb.append(packet.action + "");
+		if (packet.data != null) {
+			for (int i = 0; i < packet.data.size(); i++) {
+				sb.append("\u0002");
+				sb.append(packet.data.get(i));
+			}
+		}
+		
+		pw.println(sb.toString());
 	}
 	
-	public static Message readLine(BufferedReader reader) throws IOException, ClientDisconnectedException, NumberFormatException, NullPointerException {
-		try {
-			String newLine = reader.readLine();
-			if (newLine == null) {
-				throw new ClientDisconnectedException();
+	public static Packet readPacket(String text) throws Exception {
+		String[] args = text.split("\u0002");
+		Packet packet = new Packet();
+		packet.action = Integer.parseInt(args[0]);
+		
+		if (args.length > 1) {
+			packet.data = new ArrayList<String>();
+			for (int i = 1; i < args.length; i++) {
+				packet.data.add(args[i]);
 			}
-			int id = Integer.parseInt(newLine);
-			String message = reader.readLine();
-			if (!message.contains(MessageType.getLineSeparator())) {
-				return new Message(message, MessageType.getTypeByID(id));
-			}
-			String[] args = message.split(MessageType.getLineSeparator());
-			return new Message(Arrays.asList(args), MessageType.getTypeByID(id));
-		} catch (SocketException e) {
-			throw new ClientDisconnectedException();
 		}
+		
+		return packet;
 	}
 }
